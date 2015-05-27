@@ -1,16 +1,18 @@
 package workers
 
 import (
-	"github.com/garyburd/redigo/redis"
 	"strconv"
 	"time"
+
+	"github.com/garyburd/redigo/redis"
 )
 
 type config struct {
-	processId string
-	Namespace string
-	Pool      *redis.Pool
-	Fetch     func(queue string) Fetcher
+	processId    string
+	Namespace    string
+	PollInterval int
+	Pool         *redis.Pool
+	Fetch        func(queue string) Fetcher
 }
 
 var Config *config
@@ -18,6 +20,7 @@ var Config *config
 func Configure(options map[string]string) {
 	var poolSize int
 	var namespace string
+	var pollInterval int
 
 	if options["server"] == "" {
 		panic("Configure requires a 'server' option, which identifies a Redis instance")
@@ -31,12 +34,18 @@ func Configure(options map[string]string) {
 	if options["namespace"] != "" {
 		namespace = options["namespace"] + ":"
 	}
+	if seconds, err := strconv.Atoi(options["poll_interval"]); err == nil {
+		pollInterval = seconds
+	} else {
+		pollInterval = 15
+	}
 
 	poolSize, _ = strconv.Atoi(options["pool"])
 
 	Config = &config{
 		options["process"],
 		namespace,
+		pollInterval,
 		&redis.Pool{
 			MaxIdle:     poolSize,
 			IdleTimeout: 240 * time.Second,
